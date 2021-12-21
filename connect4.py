@@ -19,6 +19,7 @@ class ConnectFourBase:
         self.turn = 1
 
     def checkWin(self):
+        '''Returns 0 for draw, 1 for player 1, 2 for player 2.'''
         dy = [1,0,-1,0,1,1,-1,-1]
         dx = [0,1,0,-1,1,-1,1,-1]
 
@@ -64,6 +65,7 @@ class ConnectFourBase:
             for c in range(self.C):
                 print(self.board[r][c],end="")
             print()
+        print('-----------')
 
     def duplicate(self):
         return copy.deepcopy(self)
