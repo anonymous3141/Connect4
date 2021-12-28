@@ -4,6 +4,8 @@ import gym, copy
 # demonstration of Monte Carlo Tree search in deterministic enviroment
 # epsilon greedy tree policy with random rollout
 # It seems that MCTS is most suited to such enviroments
+# although can be made to work with stochastic ones too by
+# keeping all possible successor states (not implemented here)
 env = gym.make("CartPole-v1")
 np.random.seed(0)
 SIMULATIONS_PER_MOVE = 30

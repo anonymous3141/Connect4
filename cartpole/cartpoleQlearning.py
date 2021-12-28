@@ -9,7 +9,7 @@ import copy, time
 env = gym.make("CartPole-v1")
 np.random.seed(0)
 torch.manual_seed(0)
-EPISODES = 1000
+EPISODES = 400
 MEMORY_LENGTH = 1000
 ACTION_COUNT = env.action_space.n
 INPUT_DIM = env.observation_space._shape[0]
@@ -142,3 +142,4 @@ while not done:
     state, _, done, _ = env.step(best_action)
 
 env.close()    
+print(survival_time)
