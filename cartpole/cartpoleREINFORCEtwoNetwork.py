@@ -7,13 +7,14 @@ import copy, time
 # This program implements the REINFORCE algorithm with or without
 # a state value baseline for episodic enviroments, in this case Cartpole
 # I would be pleased to know if experience replay is useful here
-# This version implemented with a single multiheaded network and for some reason doesnt work well
+# Learning rate really does matter!
+# This is implemented with 2 different networks.
 # REINFORCE w/ baseline is different to the A2C "advantage actor critic" algorithm: see below
 # https://stats.stackexchange.com/questions/340987/how-can-i-understand-reinforce-with-baseline-is-not-a-actor-critic-algorithm
 env = gym.make("CartPole-v1")
 np.random.seed(0)
 torch.manual_seed(0)
-EPISODES = 500
+EPISODES = 2000
 ACTION_COUNT = env.action_space.n
 INPUT_DIM = env.observation_space._shape[0]
 DISCOUNT_FACTOR = 1 # no discount
@@ -37,7 +38,7 @@ def inputify(state):
     return torch.from_numpy(state) # value network only
 
 def value(model, state):
-    return model(inputify(state))[-1].detach().item()
+    return model(inputify(state)).detach().item()
 
 #pytorch setup
 class BasicDataset(Dataset):
@@ -51,29 +52,48 @@ class BasicDataset(Dataset):
     # is torch tensor needed?
     # probably not
     return self.dat[idx][0], self.dat[idx][1]
-  
-class ValuePolicyNet(nn.Module):
+
+class ValueNet(nn.Module):
 
   def __init__(self):
     # map state to state value
     # min squared error
     # lets see if we can multihead this
-    super(ValuePolicyNet, self).__init__() # 2 hidden layers of 8 neurons
+    super(ValueNet, self).__init__() # 2 hidden layers of 8 neurons
+    self.linear_stack = nn.Sequential(nn.Linear(INPUT_DIM,8),
+                                      nn.ReLU(),
+                                      nn.Linear(8,8),
+                                      nn.ReLU())
+    self.value_output = nn.Linear(8,1)
+
+  def forward(self, x):
+    # bug where x is a batch of inputs
+    y = self.linear_stack(x)
+    return self.value_output(y)
+  
+class PolicyNet(nn.Module):
+
+  def __init__(self):
+    # map state to state value
+    # min squared error
+    # lets see if we can multihead this
+    super(PolicyNet, self).__init__() # 2 hidden layers of 8 neurons
     self.linear_stack = nn.Sequential(nn.Linear(INPUT_DIM,8),
                                       nn.ReLU(),
                                       nn.Linear(8,8),
                                       nn.ReLU())
     self.policy_output = nn.Sequential(nn.Linear(8,2),
                                        nn.Softmax(dim=-1))
-    self.value_output = nn.Linear(8,1)
 
   def forward(self, x):
     # bug where x is a batch of inputs
     y = self.linear_stack(x)
-    return torch.cat((self.policy_output(y), self.value_output(y)), dim=-1)
+    return self.policy_output(y)
 
-model = ValuePolicyNet()
+model = PolicyNet()
+valueModel = ValueNet()
 optimizer = torch.optim.Adam(model.parameters(), lr = LEARNING_RATE)
+valueOptimizer = torch.optim.Adam(valueModel.parameters(), lr = LEARNING_RATE)
 # learning loop
 
 for ep in range(0, EPISODES):
@@ -84,7 +104,7 @@ for ep in range(0, EPISODES):
     while not done:
 
         # decide action by strictly following policy (no eps greedy)
-        probabilities = model(inputify(state))[:-1].detach()
+        probabilities = model(inputify(state)).detach()
         rng = np.random.random()
         best_action = 0
         while probabilities[best_action].item() < rng:
@@ -112,7 +132,7 @@ for ep in range(0, EPISODES):
         curState = stateList[t][0]
         g = g*DISCOUNT_FACTOR + curReward # G(t)
         if USE_VALUE_BASELINE:
-          delta = g - value(model, curState)
+          delta = g - value(valueModel, curState)
         else:
           delta = g
 
@@ -131,13 +151,13 @@ for ep in range(0, EPISODES):
             curAction = stateList[t][1]
             curState = stateList[t][0]
             g = g*DISCOUNT_FACTOR + curReward # G(t)
-            valuePredictions.append(model(inputify(curState))[-1].unsqueeze(0))
+            valuePredictions.append(valueModel(inputify(curState)))
             actualValues.append(g)
         
-        optimizer.zero_grad()
+        valueOptimizer.zero_grad()
         valueLoss = nn.MSELoss()(torch.cat(valuePredictions), torch.Tensor(actualValues))
         valueLoss.backward()
-        optimizer.step()
+        valueOptimizer.step()
       
     #update values
     if (ep+1)%25 == 0:
@@ -151,11 +171,7 @@ survival_time = 0
 while not done:
     env.render()
     survival_time += 1
-    best_action = 0
-    probabilities = model(inputify(state))[:-1]
-    while probabilities[best_action].item() < rng:
-            rng -= probabilities[best_action].item()
-            best_action += 1
+    best_action = torch.argmax(model(inputify(state))).item()
     time.sleep(0.01)
     state, _, done, _ = env.step(best_action)
 
