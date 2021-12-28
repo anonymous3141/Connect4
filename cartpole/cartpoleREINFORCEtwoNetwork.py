@@ -14,7 +14,7 @@ import copy, time
 env = gym.make("CartPole-v1")
 np.random.seed(0)
 torch.manual_seed(0)
-EPISODES = 1200 # AI exhibits exponential learning growth 
+EPISODES = 1500 # AI exhibits exponential learning growth 
 ACTION_COUNT = env.action_space.n
 INPUT_DIM = env.observation_space._shape[0]
 DISCOUNT_FACTOR = 1 # no discount
@@ -185,3 +185,6 @@ while not done:
 
 env.close()    
 print(survival_time)
+
+#torch.save(model.state_dict(), "cartpolePolicyVeryGood.pth")
+#torch.save(valueModel.state_dict(), "cartpoleValueVeryGood.pth")
