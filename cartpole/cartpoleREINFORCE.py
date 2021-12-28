@@ -7,13 +7,14 @@ import copy, time
 # This program implements the REINFORCE algorithm with or without
 # a state value baseline for episodic enviroments, in this case Cartpole
 # I would be pleased to know if experience replay is useful here
-# This version implemented with a single multiheaded network and for some reason doesnt work well
+# This version implemented with a single multiheaded network
+# Harder to tune than two networks cuz learning rates is different cuz value/prob have different scales
 # REINFORCE w/ baseline is different to the A2C "advantage actor critic" algorithm: see below
 # https://stats.stackexchange.com/questions/340987/how-can-i-understand-reinforce-with-baseline-is-not-a-actor-critic-algorithm
 env = gym.make("CartPole-v1")
 np.random.seed(0)
 torch.manual_seed(0)
-EPISODES = 500
+EPISODES = 1000 # AI exhibits exponential learning growth
 ACTION_COUNT = env.action_space.n
 INPUT_DIM = env.observation_space._shape[0]
 DISCOUNT_FACTOR = 1 # no discount
@@ -73,14 +74,14 @@ class ValuePolicyNet(nn.Module):
     return torch.cat((self.policy_output(y), self.value_output(y)), dim=-1)
 
 model = ValuePolicyNet()
+valueOptimizer = torch.optim.Adam(model.parameters(), lr = LEARNING_RATE*0.1) # as values larger?
 optimizer = torch.optim.Adam(model.parameters(), lr = LEARNING_RATE)
 # learning loop
-
+max_seen = 0
 for ep in range(0, EPISODES):
     state = env.reset()
     done = False
     stateList = []
-
     while not done:
 
         # decide action by strictly following policy (no eps greedy)
@@ -101,6 +102,7 @@ for ep in range(0, EPISODES):
 
     # add terminal state
     stateList.append([state,0,0])
+    max_seen = max(max_seen, len(stateList))
     g = 0
     weightedProb = torch.Tensor([0])
 
@@ -134,25 +136,27 @@ for ep in range(0, EPISODES):
             valuePredictions.append(model(inputify(curState))[-1].unsqueeze(0))
             actualValues.append(g)
         
-        optimizer.zero_grad()
+        valueOptimizer.zero_grad()
         valueLoss = nn.MSELoss()(torch.cat(valuePredictions), torch.Tensor(actualValues))
         valueLoss.backward()
-        optimizer.step()
+        valueOptimizer.step()
       
     #update values
     if (ep+1)%25 == 0:
-      print(f"Episode {ep+1}")
+      print(f"Episode {ep+1}, max={max_seen}")
     
 # test model out
 state = env.reset()
-duplicate_state = copy.deepcopy(env)
 done = False
 survival_time = 0
+
+# It is important to apply stochastic selection
 while not done:
     env.render()
     survival_time += 1
     best_action = 0
     probabilities = model(inputify(state))[:-1]
+    rng = np.random.random()
     while probabilities[best_action].item() < rng:
             rng -= probabilities[best_action].item()
             best_action += 1

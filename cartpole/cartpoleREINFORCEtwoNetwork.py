@@ -8,13 +8,13 @@ import copy, time
 # a state value baseline for episodic enviroments, in this case Cartpole
 # I would be pleased to know if experience replay is useful here
 # Learning rate really does matter!
-# This is implemented with 2 different networks.
+# This is implemented with 2 different networks. Works quite well
 # REINFORCE w/ baseline is different to the A2C "advantage actor critic" algorithm: see below
 # https://stats.stackexchange.com/questions/340987/how-can-i-understand-reinforce-with-baseline-is-not-a-actor-critic-algorithm
 env = gym.make("CartPole-v1")
 np.random.seed(0)
 torch.manual_seed(0)
-EPISODES = 2000
+EPISODES = 1200 # AI exhibits exponential learning growth 
 ACTION_COUNT = env.action_space.n
 INPUT_DIM = env.observation_space._shape[0]
 DISCOUNT_FACTOR = 1 # no discount
@@ -94,6 +94,7 @@ model = PolicyNet()
 valueModel = ValueNet()
 optimizer = torch.optim.Adam(model.parameters(), lr = LEARNING_RATE)
 valueOptimizer = torch.optim.Adam(valueModel.parameters(), lr = LEARNING_RATE)
+max_seen = 0
 # learning loop
 
 for ep in range(0, EPISODES):
@@ -121,6 +122,7 @@ for ep in range(0, EPISODES):
 
     # add terminal state
     stateList.append([state,0,0])
+    max_seen = max(max_seen, len(stateList))
     g = 0
     weightedProb = torch.Tensor([0])
 
@@ -161,17 +163,23 @@ for ep in range(0, EPISODES):
       
     #update values
     if (ep+1)%25 == 0:
-      print(f"Episode {ep+1}")
+      print(f"Episode {ep+1}, max={max_seen}")
     
 # test model out
+# It is important to apply stochastic selection
 state = env.reset()
-duplicate_state = copy.deepcopy(env)
 done = False
 survival_time = 0
+
 while not done:
     env.render()
     survival_time += 1
-    best_action = torch.argmax(model(inputify(state))).item()
+    best_action = 0
+    probabilities = model(inputify(state))
+    rng = np.random.random()
+    while probabilities[best_action].item() < rng:
+            rng -= probabilities[best_action].item()
+            best_action += 1
     time.sleep(0.01)
     state, _, done, _ = env.step(best_action)
 
