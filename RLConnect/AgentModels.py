@@ -55,7 +55,8 @@ def get_probabilities(model, state, detach = True):
         probs.detach()
     for i in range(7):
         if get(state[1], 5, i):
-            probs[i] = 0
+            probs[i] = -1000
+    #print(nn.Softmax(dim=-1)(probs))
     return nn.Softmax(dim=-1)(probs)
 
 def sample_action(model, state):

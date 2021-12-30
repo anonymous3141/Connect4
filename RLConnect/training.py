@@ -55,7 +55,9 @@ for ep in range(0, EPISODES):
 
         # decide action by strictly following policy (no eps greedy)
         move = sample_action(model, state)
+        
         # make action
+        #env.displayBoard()
         tmp_state, reward, done = env.play(move)
 
 
@@ -66,7 +68,7 @@ for ep in range(0, EPISODES):
         else:
             reward2 = 0
         stateList.append([state, move, reward + reward2])
-        state2 = state
+        state = state2
         
     g = 0
     weightedProb = torch.Tensor([0])
@@ -113,5 +115,5 @@ for ep in range(0, EPISODES):
     if (ep+1)%PERIOD == 0:
         candidate_agents.append(copy.deepcopy(model))
     
-#torch.save(model.state_dict(), "connect4PolicyVer1.pth")
-#torch.save(valueModel.state_dict(), "connect4ValueVer1.pth")
+torch.save(model.state_dict(), "connect4PolicyVer1.pth")
+torch.save(valueModel.state_dict(), "connect4ValueVer1.pth")
