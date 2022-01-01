@@ -2,8 +2,8 @@ import numpy as np
 from torch import nn
 from torch.distributions import Categorical
 from connect4 import ConnectFour
-from AgentModels import get, inputify, value, get_probabilities, sample_action
-from AgentModels import PolicyNet, ValueNet
+from AgentModels import get, inputify, value, get_probabilities, sample_action, Q_action
+from AgentModels import PolicyNet, ValueNet, QNet
 import torch
 import copy, time
 """
@@ -16,12 +16,20 @@ or ourselves
 np.random.seed(0)
 torch.manual_seed(0)
 
+def get_move(model_type, model, state):
+    if model_type == "policy":
+        return sample_action(model, state)
+    elif model_type == "Q":
+        return Q_action(model, state, True)[0]
 
-
-def play_input(policyModel_dir, ai_goes_first = True):
+def play_input(model_type, model_dir, ai_goes_first = True):
     # get human to play model
-    model = PolicyNet()
-    model.load_state_dict(torch.load(policyModel_dir))
+    if model_type == "policy":
+        model = PolicyNet()
+    elif model_type == "Q":
+        model = QNet()
+
+    model.load_state_dict(torch.load(model_dir))
     env = ConnectFour()
     state = env.reset()
 
@@ -29,14 +37,22 @@ def play_input(policyModel_dir, ai_goes_first = True):
 
     if ai_goes_first:
         # cant be done on first move
-        move = sample_action(model, state)
+        move = get_move(model_type, model, state)
         state, _, _ = env.play(move)
 
     while not done:
         env.displayBoard()
         move = -1
         while True:
-            move = int(input("Make a move (cols 0-6): "))
+            print("AI Suggested move:")
+            print(get_move(model_type, model, state))
+            move = input("Make a move (cols 0-6): ")
+
+            try:
+                move = int(move)
+            except:
+                print("Invalid move. Try again")
+                continue
             if env.canPlay(move):
                 tmp_state, reward, done = env.play(move)
                 break
@@ -44,14 +60,15 @@ def play_input(policyModel_dir, ai_goes_first = True):
                 print("Invalid move. Try again")
 
         if not done:
-            response = sample_action(model, tmp_state)
+            response = get_move(model_type, model, tmp_state)
             print(response)
             state, reward, done = env.play(response)
-
+        
         if reward == 1:
             print("Player 1 Wins")
         elif reward == -1:
             print("Player 2 Wins")
 
-play_input("connect4PolicyVer1.pth")
+#play_input("policy", "connect4PolicyVer4.pth")
+play_input("Q", "connect4QVer6.pth", False)
     

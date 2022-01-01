@@ -65,6 +65,27 @@ def sample_action(model, state):
     # remaining values softmaxed
     probs = Categorical(get_probabilities(model, state))
     return probs.sample().item()
+
+def Q_action(model, state, debug=False):
+        # if player 1 turn, return maximum value action
+        # if player 2 turn, return minimum value action
+        # return best action and associated predicted value
+        values = model(inputify(state))[0] #[0] because input is as batch
+        best_action = -1
+        #print(state, values)
+        for i in range(7):
+            if get(state[1], 5, i):
+                continue
+            else:
+                if best_action == -1:
+                    best_action = i
+                elif state[2] == 1 and values[best_action] < values[i]:
+                    best_action = i
+                elif state[2] != 1 and values[best_action] > values[i]:
+                    best_action = i
+        if debug:
+            print(values)
+        return best_action, values[best_action].item()
 """
 Pytorch setup:
 two similar networks for valuing positions and determining turn policy
@@ -111,6 +132,27 @@ class PolicyNet(nn.Module):
                                       nn.Linear(20,7)) #we'll handle softmax after
   def forward(self, x):
     # x is of shape (n,85), each input contains 85 0-1 numbers (84 is 1 iff player 1 turn)
+    # position is 6 by 7 with 2 channels containing you and your opponent's stones
+    turn = x[:,-1].unsqueeze(1)
+    features = self.feature_stack(torch.reshape(x[:,:-1],(x.shape[0],2,6,7)))
+    return self.linear_stack(torch.cat((features,turn),1))
+
+class QNet(nn.Module):
+
+  def __init__(self):
+    # map state into each of 7 Q values
+    # literally the same as PolicyNet but we rename for clarity
+    super(QNet, self).__init__() # 2 hidden layers of 8 neurons
+    self.feature_stack = nn.Sequential(nn.Conv2d(2,32,4), #32 4 by 4 filters with stride 1
+                                      nn.ReLU(),
+                                      nn.Conv2d(32,16,(3,2)), #8 2 by 2 filters
+                                      nn.ReLU(),
+                                      nn.Flatten(start_dim=1, end_dim=- 1))
+    self.linear_stack = nn.Sequential(nn.Linear(48+1,20),
+                                      nn.ReLU(),
+                                      nn.Linear(20,7))
+  def forward(self, x):
+    # x is of shape (n,85), each input contains 85 0-1 numbers
     # position is 6 by 7 with 2 channels containing you and your opponent's stones
     turn = x[:,-1].unsqueeze(1)
     features = self.feature_stack(torch.reshape(x[:,:-1],(x.shape[0],2,6,7)))

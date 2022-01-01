@@ -4,6 +4,8 @@ from torch import nn
 import torch
 import copy, time
 
+# file for making calculations for covnet architecture
+
 class QNet(nn.Module):
 
   def __init__(self):
