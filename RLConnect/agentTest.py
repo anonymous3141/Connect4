@@ -4,15 +4,13 @@ from torch.distributions import Categorical
 from connect4 import ConnectFour
 from AgentModels import get, inputify, value, get_probabilities, sample_action, Q_action
 from AgentModels import PolicyNet, ValueNet, QNet
+from Negamax import Negamax
 import torch
 import copy, time
 """
-This file enables benchmarking of agent.
-We get the agent to play an alphaBeta agent (todo)
-or ourselves
+This file enables benchmarking of agent by manually playing against it
 """
 
-# This should take about 2-3 hours to train
 np.random.seed(0)
 torch.manual_seed(0)
 
@@ -21,15 +19,21 @@ def get_move(model_type, model, state):
         return sample_action(model, state)
     elif model_type == "Q":
         return Q_action(model, state, True)[0]
+    elif model_type == "negamax":
+        A = Negamax()
+        return A.negamax(ConnectFour(state), 5)[1]
 
 def play_input(model_type, model_dir, ai_goes_first = True):
     # get human to play model
     if model_type == "policy":
         model = PolicyNet()
+        model.load_state_dict(torch.load(model_dir))
     elif model_type == "Q":
         model = QNet()
+        model.load_state_dict(torch.load(model_dir))
+    else:
+        model = None
 
-    model.load_state_dict(torch.load(model_dir))
     env = ConnectFour()
     state = env.reset()
 
@@ -44,8 +48,8 @@ def play_input(model_type, model_dir, ai_goes_first = True):
         env.displayBoard()
         move = -1
         while True:
-            print("AI Suggested move:")
-            print(get_move(model_type, model, state))
+            #print("AI Suggested move:")
+            #print(get_move(model_type, model, state))
             move = input("Make a move (cols 0-6): ")
 
             try:
@@ -70,5 +74,5 @@ def play_input(model_type, model_dir, ai_goes_first = True):
             print("Player 2 Wins")
 
 #play_input("policy", "connect4PolicyVer4.pth")
-play_input("Q", "connect4QVer6.pth", False)
-    
+#play_input("Q", "connect4QVer7.pth")
+play_input("negamax", None)

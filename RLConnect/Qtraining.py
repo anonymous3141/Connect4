@@ -21,13 +21,13 @@ np.random.seed(0)
 torch.manual_seed(0)
 USE_PRETRAINED = False
 PRETAINED_Q_DIR = "connect4QVer3.pth"
-EPISODES = 100000 # number of self plays
+EPISODES = 10000 # number of self plays
 PERIOD = 100 # every PERIOD games cache agent and keep as possible opponent
 ACTION_COUNT = 7
-LEARNING_RATE = 0.0003
-REG = 0.001
+LEARNING_RATE = 0.0005
+REG = 0
 EPS = 0.9
-OPPONENT_EPS = 0.2 # add some stochasticity to opponent
+OPPONENT_EPS = 0.1 # add some stochasticity to opponent
 DISCOUNT_FACTOR = 1
 BUFFER_SIZE = 10000
 REPLAY_BATCH_SIZE = 30
@@ -53,7 +53,7 @@ opponents = [copy.deepcopy(model)]
 playback_samples = []
 for t in range(0, EPISODES):
     state = env.reset()
-    cur_eps = 0.1+(EPISODES-t) * (EPS-0.1)/EPISODES # linearly decrease to 0.1
+    cur_eps = 0.2+(EPISODES-t) * (EPS-0.2)/EPISODES # linearly decrease to 0.1
     done = False
     state = env.reset()
     stateList = []
@@ -64,7 +64,6 @@ for t in range(0, EPISODES):
     if np.random.randint(2) == 1:
         # flip coin to go first or second
         state,_,_ = env.play(Q_action(opponent, state)[0])
-    
     while not done:
 
         # decide action by epsilon greedy for current policy
@@ -122,6 +121,6 @@ for t in range(0, EPISODES):
     if (t+1)%250 == 0:
       print(f"Episode {t+1}, took {time.time()-prev_time} seconds")
       prev_time = time.time()
-      torch.save(model.state_dict(), "connect4QVer6.pth")
+      torch.save(model.state_dict(), "connect4QVer7.pth")
     
-torch.save(model.state_dict(), "connect4QVer6.pth")
+torch.save(model.state_dict(), "connect4QVer7.pth")

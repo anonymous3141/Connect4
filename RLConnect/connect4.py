@@ -21,11 +21,16 @@ class ConnectFour:
 
     Bits 6,13 ... are always 0
     """
-    def __init__(self):
+    def __init__(self, state=[]):
         self.mask1 = 0 #player 1's stones
         self.mask2 = 0 #everyone's stones
         self.turn = 1
         self.numMoves = 0
+
+        if len(state):
+            self.mask1 = state[0]
+            self.mask2 = state[1]
+            self.turn = state[2]
     
     def reset(self):
         self.mask1 = 0
@@ -128,8 +133,15 @@ class ConnectFour:
             print()
         print('-----------')
 
+    def getState(self):
+        return [self.mask1, self.mask2, self.turn]
+    
     def duplicate(self):
         # duplicate state
         return copy.deepcopy(self)
+
+    def hash(self):
+        return (self.mask1<<42)+self.mask2
+
 
 
